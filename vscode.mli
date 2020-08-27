@@ -47,7 +47,7 @@ module Position : sig
 
          method compare_to : t -> int
 
-         method translate : ?lineDelta:int -> ?characterDelta:int -> unit -> t
+         method translate : ?line_delta:int -> ?character_delta:int -> unit -> t
 
          method with_ : ?line:int -> ?character:int -> unit -> t
        end
@@ -85,10 +85,10 @@ module Range : sig
     [@@js.new "Range"]
 
   val from_coordinates :
-       startLine:int
-    -> startCharacter:int
-    -> endLine:int
-    -> endCharacter:int
+       start_line:int
+    -> start_character:int
+    -> end_line:int
+    -> end_character:int
     -> unit
     -> t
     [@@js.new "Range"]
