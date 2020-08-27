@@ -114,10 +114,12 @@ module TextLine : sig
        end
 
   val create :
-       title:string
-    -> command:string
-    -> ?tooltip:string
-    -> ?arguments:Ojs.t array
+       line_number:int
+    -> text:string
+    -> range:Range.t
+    -> range_including_line_break:Range.t
+    -> first_non_whitespace_character_index:int
+    -> is_empty_or_whitespace:bool
     -> unit
     -> t
     [@@js.builder]
