@@ -1,0 +1,11 @@
+(library
+ (public_name vscode_jsoo)
+ (name vscode)
+ (libraries gen_js_api js_of_ocaml)
+ (modes byte))
+
+(rule
+ (targets vscode.ml)
+ (deps vscode.mli)
+ (action
+  (run %{bin:gen_js_api} %{deps})))
