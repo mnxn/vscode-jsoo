@@ -29,7 +29,13 @@ type regexp = Js_of_ocaml.Regexp.regexp
 
 let regexp_to_js : regexp -> Ojs.t = Obj.magic
 
-let regexp_of_js : Ojs.t -> regexp = Obj.magic]
+let regexp_of_js : Ojs.t -> regexp = Obj.magic
+
+let () =
+  let open Js_of_ocaml.Js in
+  let require = Unsafe.get Unsafe.global "require" in
+  let vscode = Unsafe.fun_call require [| Unsafe.inject (string "vscode") |] in
+  Unsafe.set Unsafe.global "vscode" vscode]
 
 val get_version : unit -> string [@@js.get "vscode.version"]
 
