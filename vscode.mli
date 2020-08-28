@@ -1,10 +1,30 @@
 [@@@js.stop]
 
+type 'a or_undefined = 'a option
+
 type regexp = Js_of_ocaml.Regexp.regexp
 
 [@@@js.start]
 
 [@@@js.implem
+type 'a or_undefined = 'a option
+
+external equals : Ojs.t -> Ojs.t -> bool = "caml_js_equals"
+
+external pure_js_expr : string -> Ojs.t = "caml_pure_js_expr"
+
+let undefined = pure_js_expr "undefined"
+
+let or_undefined_of_js f x =
+  if equals x undefined then
+    None
+  else
+    Some (f x)
+
+let or_undefined_to_js f = function
+  | Some x -> f x
+  | None   -> undefined
+
 type regexp = Js_of_ocaml.Regexp.regexp
 
 let regexp_to_js : regexp -> Ojs.t = Obj.magic
@@ -14,33 +34,22 @@ let regexp_of_js : Ojs.t -> regexp = Obj.magic]
 val get_version : unit -> string [@@js.get "vscode.version"]
 
 module Disposable : sig
-  class t :
-    Ojs.t
-    -> object
-         inherit Ojs.obj
+  type t = private Ojs.t
 
-         method dispose : unit -> unit
-       end
+  val from : (t list[@js.variadic]) -> t [@@js.global]
 
   val make : dispose:(unit -> unit) -> unit -> t [@@js.new "Disposable"]
 
-  val from : (t list[@js.variadic]) -> t [@@js.global "Disposable.from"]
-end [@scope "vscode"]
+  val dispose : t -> unit -> unit [@@js.call]
+end [@js.scope "vscode.Disposable"]
 
 module Command : sig
-  class t :
-    Ojs.t
-    -> object
-         inherit Ojs.obj
-
-         method title : string
-
-         method command : string
-
-         method tooltip : string option
-
-         method arguments : Ojs.t array option
-       end
+  type t =
+    { title : string
+    ; command : string
+    ; tooltip : string or_undefined
+    ; arguments : Ojs.t array or_undefined
+    }
 
   val create :
        title:string
@@ -50,66 +59,48 @@ module Command : sig
     -> unit
     -> t
     [@@js.builder]
-end [@scope "vscode"]
+end
 
 module Position : sig
-  class t :
-    Ojs.t
-    -> object
-         inherit Ojs.obj
+  type t = private
+    { line : int
+    ; character : int
+    }
 
-         method line : int
-
-         method character : int
-
-         method is_before : t -> bool
-
-         method is_before_or_equal : t -> bool
-
-         method is_after : t -> bool
-
-         method is_after_or_equal : t -> bool
-
-         method is_equal : t -> bool
-
-         method compare_to : t -> int
-
-         method translate : ?line_delta:int -> ?character_delta:int -> unit -> t
-
-         method with_ : ?line:int -> ?character:int -> unit -> t
-       end
+  type this = t
 
   val make : line:int -> character:int -> unit -> t [@@js.new "Position"]
-end [@scope "vscode"]
+
+  val is_before : this -> t -> bool [@@js.call]
+
+  val is_before_or_equal : this -> t -> bool [@@js.call]
+
+  val is_after : this -> t -> bool [@@js.call]
+
+  val is_after_or_equal : this -> t -> bool [@@js.call]
+
+  val is_equal : this -> t -> bool [@@js.call]
+
+  val compare_to : this -> t -> int [@@js.call]
+
+  val translate : this -> ?line_delta:int -> ?character_delta:int -> unit -> t
+    [@@js.call]
+
+  val with_ : this -> ?line:int -> ?character:int -> unit -> t [@@js.call]
+end
 
 module Range : sig
-  class t :
-    Ojs.t
-    -> object
-         inherit Ojs.obj
+  type t = private
+    { start : Position.t
+    ; end_ : Position.t
+    ; is_empty : bool
+    ; is_single_line : bool
+    }
 
-         method start : Position.t
-
-         method end_ : Position.t
-
-         method is_empty : bool
-
-         method is_single_line : bool
-
-         method contains :
-           ([ `Position of Position.t | `Range of t ][@js.union]) -> bool
-
-         method is_equal : t -> bool
-
-         method intersection : t -> t option
-
-         method union : t -> t
-
-         method with_ : ?start:Position.t -> ?end_:Position.t -> unit -> t
-       end
+  type this = t
 
   val from_positions : start:Position.t -> end_:Position.t -> unit -> t
-    [@@js.new "Range"]
+    [@@js.new "vscode.Range"]
 
   val from_coordinates :
        start_line:int
@@ -118,27 +109,31 @@ module Range : sig
     -> end_character:int
     -> unit
     -> t
-    [@@js.new "Range"]
-end [@scope "vscode"]
+    [@@js.new "vscode.Range"]
+
+  val contains :
+    this -> ([ `Position of Position.t | `Range of t ][@js.union]) -> bool
+    [@@js.call]
+
+  val is_equal : this -> t -> bool [@@js.call]
+
+  val intersection : this -> t -> t or_undefined [@@js.call]
+
+  val union : this -> t -> t [@@js.call]
+
+  val with_ : this -> ?start:Position.t -> ?end_:Position.t -> unit -> t
+    [@@js.call]
+end
 
 module TextLine : sig
-  class t :
-    Ojs.t
-    -> object
-         inherit Ojs.obj
-
-         method line_number : int
-
-         method text : string
-
-         method range : Range.t
-
-         method range_including_line_break : Range.t
-
-         method first_non_whitespace_character_index : int
-
-         method is_empty_or_whitespace : bool
-       end
+  type t =
+    { line_number : int
+    ; text : string
+    ; range : Range.t
+    ; range_including_line_break : Range.t
+    ; first_non_whitespace_character_index : int
+    ; is_empty_or_whitespace : bool
+    }
 
   val create :
        line_number:int
@@ -150,121 +145,96 @@ module TextLine : sig
     -> unit
     -> t
     [@@js.builder]
-end [@scope "vscode"]
+end
 
 module EndOfLine : sig
   type t =
     | CRLF [@js 2]
     | LF [@js 1]
   [@@js.enum]
-end [@scope "vscode"]
+end
 
 module TextEdit : sig
-  class t :
-    Ojs.t
-    -> object
-         inherit Ojs.obj
+  type t = private
+    { range : Range.t
+    ; new_text : string
+    ; new_eol : EndOfLine.t or_undefined
+    }
 
-         method range : Range.t
+  val replace : range:Range.t -> new_text:string -> unit -> t [@@js.global]
 
-         method new_text : string
+  val insert : position:Position.t -> new_text:string -> unit -> t [@@js.global]
 
-         method new_eol : EndOfLine.t
-       end
+  val delete : Range.t -> t [@@js.global]
+
+  val set_end_of_line : EndOfLine.t -> t [@@js.global]
 
   val create : range:Range.t -> new_text:string -> unit -> t [@@js.builder]
-
-  val replace : range:Range.t -> new_text:string -> unit -> t
-    [@@js.global "TextEdit.replace"]
-
-  val insert : position:Position.t -> new_text:string -> unit -> t
-    [@@js.global "TextEdit.insert"]
-
-  val delete : Range.t -> t [@@js.global "TextEdit.delete"]
-
-  val set_end_of_line : EndOfLine.t -> t [@@js.global "TextEdit.setEndOfLine"]
-end [@scope "vscode"]
+end [@js.scope "vscode.TextEdit"]
 
 module Uri : sig
-  class t :
-    Ojs.t
-    -> object
-         inherit Ojs.obj
+  type t = private
+    { scheme : string
+    ; authority : string
+    ; path : string
+    ; query : string
+    ; fragment : string
+    ; fs_path : string
+    }
 
-         method scheme : string
+  type this = t
 
-         method authority : string
+  val parse : string -> ?strict:bool -> unit -> t [@@js.global]
 
-         method path : string
+  val file : string -> t [@@js.global]
 
-         method query : string
+  val join_path : t -> (string list[@js.variadic]) -> t [@@js.global]
 
-         method fragment : string
+  (* method with_ :
+        ?scheme:string
+     -> ?authority:string
+     -> ?path:string
+     -> ?query:string
+     -> ?fragment:string
+     -> unit
+     -> t *)
 
-         method fs_path : string
+  val to_string : this -> ?skip_encoding:bool -> unit -> string
 
-         method to_string : ?skip_encoding:bool -> unit -> string
-
-         method to_json : unit -> Ojs.t
-         (* method with_ :
-               ?scheme:string
-            -> ?authority:string
-            -> ?path:string
-            -> ?query:string
-            -> ?fragment:string
-            -> unit
-            -> t *)
-       end
-
-  val parse : string -> ?strict:bool -> unit -> t [@@js.global "Uri.parse"]
-
-  val file : string -> t [@@js.global "Uri.parse"]
-
-  val join_path : t -> (string list[@js.variadic]) -> t
-    [@@js.global "Uri.joinPath"]
-end [@scope "vscode"]
+  val to_json : this -> unit -> Ojs.t
+end [@js.scope "vscode.Uri"]
 
 module TextDocument : sig
-  class t :
-    Ojs.t
-    -> object
-         inherit Ojs.obj
+  type t =
+    { uri : Uri.t
+    ; file_name : string
+    ; is_untitled : bool
+    ; language_id : string
+    ; version : int
+    ; is_dirty : bool
+    ; is_closed : bool
+    ; eol : EndOfLine.t
+    ; line_count : int
+    }
 
-         method uri : Uri.t
+  type this = t
 
-         method file_name : string
+  (* val save : this -> unit -> bool Promise.t *)
+  val line_at : this -> int -> TextLine.t [@@js.call]
 
-         method is_untitled : bool
+  val line_at_position : this -> Position.t -> TextLine.t [@@js.call "lineAt"]
 
-         method language_id : string
+  val offset_at : this -> Position.t -> int [@@js.call]
 
-         method version : int
+  val position_at : this -> int -> Position.t [@@js.call]
 
-         method is_dirty : bool
+  val get_text : this -> ?range:Range.t -> unit -> string [@@js.call]
 
-         method is_closed : bool
+  val get_word_range_at_position :
+    this -> Position.t -> ?regex:regexp -> unit -> Range.t or_undefined
+    [@@js.call]
 
-         method eol : EndOfLine.t
+  val validate_range : this -> Range.t -> Range.t [@@js.call]
 
-         method line_count : int
-
-         (* method save : unit -> bool Promise.t *)
-         method line_at : int -> TextLine.t
-
-         method line_at_position : Position.t -> TextLine.t
-         [@@js.call "lineAt"]
-
-         method offset_at : Position.t -> int
-
-         method position_at : int -> Position.t
-
-         method get_text : ?range:Range.t -> unit -> string
-
-         method get_word_range_at_position :
-           Position.t -> ?regex:regexp -> unit -> Range.t option
-
-         method validate_range : Range.t -> Range.t
-
-         method validate_position : Position.t -> Position.t
-       end
-end [@scope "vscode"]
+  val validate_position : this -> Position.t -> Position.t [@@js.call]
+end
