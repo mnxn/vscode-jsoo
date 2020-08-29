@@ -225,7 +225,8 @@ module TextDocument : sig
 
   type this = t
 
-  (* val save : this -> unit -> bool Promise.t *)
+  val save : this -> unit -> bool Promise.t
+
   val line_at : this -> int -> TextLine.t [@@js.call]
 
   val line_at_position : this -> Position.t -> TextLine.t [@@js.call "lineAt"]
