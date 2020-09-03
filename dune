@@ -1,8 +1,11 @@
 (library
  (public_name vscode_jsoo)
  (name vscode)
- (libraries promise_jsoo gen_js_api js_of_ocaml)
- (modes byte))
+ (modules vscode)
+ (js_of_ocaml
+  (javascript_files vscode_require.js))
+ (modes byte)
+ (libraries promise_jsoo gen_js_api js_of_ocaml))
 
 (rule
  (targets vscode.ml)
