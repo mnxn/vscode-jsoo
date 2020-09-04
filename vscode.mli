@@ -2,8 +2,6 @@
 
 type 'a or_undefined = 'a option
 
-type regexp = Js_of_ocaml.Regexp.regexp
-
 [@@@js.start]
 
 [@@@js.implem
@@ -21,14 +19,49 @@ let or_undefined_to_js f = function
   | Some x -> f x
   | None   -> undefined
 
-type regexp = Js_of_ocaml.Regexp.regexp
-
-let regexp_to_js : regexp -> Ojs.t = Obj.magic
-
-let regexp_of_js : Ojs.t -> regexp = Obj.magic
-
 let iter_set obj field f value =
   Option.iter (fun value -> Ojs.set obj field (f value)) value]
+
+module Regexp : sig
+  [@@@js.stop]
+
+  type t = Js_of_ocaml.Regexp.regexp
+
+  [@@@js.start]
+
+  [@@@js.implem
+  type t = Js_of_ocaml.Regexp.regexp
+
+  let t_to_js : Js_of_ocaml.Regexp.regexp -> Ojs.t = Obj.magic
+
+  let t_of_js : Ojs.t -> Js_of_ocaml.Regexp.regexp = Obj.magic]
+end
+
+module Dict : sig
+  [@@@js.stop]
+
+  type 'a t = (string, 'a) Hashtbl.t
+
+  [@@@js.start]
+
+  [@@@js.implem
+  type 'a t = (string, 'a) Hashtbl.t
+
+  let t_to_js to_js tbl =
+    let obj = Ojs.empty_obj () in
+    let set k v = Ojs.set obj k (to_js v) in
+    Hashtbl.iter set tbl;
+    obj
+
+  let t_of_js of_js obj =
+    let tbl = Hashtbl.create 10 in
+    let set k =
+      let v = of_js (Ojs.get obj k) in
+      Hashtbl.add tbl k v
+    in
+    Ojs.iter_properties obj set;
+    tbl]
+end
 
 module Disposable : sig
   type t = private (* class *) Ojs.t
@@ -264,36 +297,12 @@ module TextDocument : sig
   val get_text : t -> ?range:Range.t -> unit -> string [@@js.call]
 
   val get_word_range_at_position :
-    t -> position:Position.t -> ?regex:regexp -> unit -> Range.t or_undefined
+    t -> position:Position.t -> ?regex:Regexp.t -> unit -> Range.t or_undefined
     [@@js.call]
 
   val validate_range : t -> range:Range.t -> Range.t [@@js.call]
 
   val validate_position : t -> position:Position.t -> Position.t [@@js.call]
-
-  val create :
-       uri:Uri.t
-    -> file_name:string
-    -> is_untitled:bool
-    -> language_id:string
-    -> version:int
-    -> is_dirty:bool
-    -> is_closed:bool
-    -> save:(unit -> bool Promise.t)
-    -> eol:EndOfLine.t
-    -> line_count:int
-    -> line_at:(line:int -> TextLine.t)
-    -> line_at_position:(position:Position.t -> TextLine.t)
-    -> offset_at:(position:Position.t -> int)
-    -> position_at:(offset:int -> Position.t)
-    -> get_text:(?range:Range.t -> unit -> string)
-    -> get_word_range_at_position:
-         (position:Position.t -> ?regex:regexp -> unit -> Range.t or_undefined)
-    -> validate_range:(range:Range.t -> Range.t)
-    -> validate_position:(position:Position.t -> Position.t)
-    -> unit
-    -> t
-    [@@js.builder]
 end
 
 module WorkspaceFolder : sig
@@ -1142,7 +1151,7 @@ module TerminalOptions : sig
 
   val cwd : t -> cwd or_undefined [@@js.get]
 
-  val env : t -> Ojs.t [@@js.get] (* TODO separate hashmap/object type *)
+  val env : t -> string or_undefined Dict.t or_undefined [@@js.get]
 
   val strict_env : t -> bool [@@js.get]
 
@@ -1400,7 +1409,7 @@ module ShellExecutionOptions : sig
 
   val cwd : t -> string or_undefined [@@js.get]
 
-  val env : t -> Ojs.t [@@js.get] (* TODO separate hashmap/object type *)
+  val env : t -> string Dict.t or_undefined [@@js.get]
 
   val create :
        ?executable:string
