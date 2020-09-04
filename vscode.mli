@@ -128,10 +128,10 @@ module Range : sig
 
   val end_ : t -> Position.t [@@js.get]
 
-  val from_positions : start:Position.t -> end_:Position.t -> t
+  val make_positions : start:Position.t -> end_:Position.t -> t
     [@@js.new "vscode.Range"]
 
-  val from_coordinates :
+  val make_coordinates :
        start_line:int
     -> start_character:int
     -> end_line:int
@@ -340,10 +340,10 @@ module Selection : sig
 
   val active : t -> Position.t [@@js.get]
 
-  val from_positions : anchor:Position.t -> active:Position.t -> t
+  val make_positions : anchor:Position.t -> active:Position.t -> t
     [@@js.new "vscode.Selection"]
 
-  val from_coordinates :
+  val make_coordinates :
        anchor_line:int
     -> anchor_character:int
     -> active_line:int
@@ -1420,4 +1420,91 @@ module ShellExecutionOptions : sig
     -> unit
     -> t
     [@@js.builder]
+end
+
+module ShellQuoting : sig
+  type t =
+    | Escape [@js 1]
+    | Strong [@js 2]
+    | Weak [@js 3]
+  [@@js.enum]
+end
+
+module ShellQuotedString : sig
+  type t = private (* interface *) Ojs.t
+
+  val value : t -> string [@@js.get]
+
+  val quoting : t -> ShellQuoting.t [@@js.get]
+
+  val create : value:string -> quoting:ShellQuoting.t -> unit -> t
+    [@@js.builder]
+end
+
+module ShellExecution : sig
+  type t = private (* class *) Ojs.t
+
+  type shell_string =
+    ([ `String of string
+     | `ShellQuotedString of ShellQuotedString.t
+     ]
+    [@js.union])
+
+  [@@@js.implem
+  let shell_string_of_js js_val =
+    match Ojs.type_of js_val with
+    | "string" -> `String (Ojs.string_of_js js_val)
+    | _        -> `ShellQuotedString (ShellQuotedString.t_of_js js_val)]
+
+  val make_command_line :
+    command_line:string -> ?options:ShellExecutionOptions.t -> unit -> t
+    [@@js.new "vscode.ShellExecution"]
+
+  val make_command_args :
+       command:shell_string
+    -> args:shell_string list
+    -> ?options:ShellExecutionOptions.t
+    -> unit
+    -> t
+    [@@js.new "vscode.ShellExecution"]
+
+  val command_line : t -> string or_undefined [@@js.get]
+
+  val command : t -> shell_string [@@js.get]
+
+  val args : t -> shell_string list [@@js.get]
+
+  val options : t -> ShellExecutionOptions.t or_undefined [@@js.get]
+end
+
+module ProcessExecutionOptions : sig
+  type t = private (* interface *) Ojs.t
+
+  val cwd : t -> string or_undefined [@@js.get]
+
+  val env : t -> string Dict.t or_undefined [@@js.get]
+
+  val create : ?cwd:string -> ?env:string Dict.t -> unit -> t [@@js.builder]
+end
+
+module ProcessExecution : sig
+  type t = private (* class *) Ojs.t
+
+  val make_process :
+    process:string -> ?options:ProcessExecutionOptions.t -> unit -> t
+    [@@js.new "vscode.ProcessExecution"]
+
+  val make_process_args :
+       process:string
+    -> args:string list
+    -> ?options:ProcessExecutionOptions.t
+    -> unit
+    -> t
+    [@@js.new "vscode.ProcessExecution"]
+
+  val process : t -> string [@@js.get]
+
+  val args : t -> string list [@@js.get]
+
+  val options : t -> ProcessExecutionOptions.t or_undefined [@@js.get]
 end
