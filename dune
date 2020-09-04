@@ -5,7 +5,7 @@
  (js_of_ocaml
   (javascript_files vscode_require.js))
  (modes byte)
- (libraries promise_jsoo gen_js_api js_of_ocaml))
+ (libraries promise_jsoo jsonoo gen_js_api js_of_ocaml))
 
 (rule
  (targets vscode.ml)

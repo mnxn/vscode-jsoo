@@ -6,8 +6,6 @@ type regexp = Js_of_ocaml.Regexp.regexp
 
 [@@@js.start]
 
-type json = private Ojs.t
-
 [@@@js.implem
 type 'a or_undefined = 'a option
 
@@ -33,11 +31,9 @@ let iter_set obj field f value =
   Option.iter (fun value -> Ojs.set obj field (f value)) value]
 
 module Disposable : sig
-  type like = private (* interface *) Ojs.t
+  type t = private (* class *) Ojs.t
 
-  type t = private (* class *) like
-
-  val from : (like list[@js.variadic]) -> t [@@js.global]
+  val from : (t list[@js.variadic]) -> t [@@js.global]
 
   val make : dispose:(unit -> unit) -> t [@@js.new "vscode.Disposable"]
 
@@ -230,7 +226,7 @@ module Uri : sig
 
   val to_string : t -> ?skip_encoding:bool -> unit -> string
 
-  val to_json : t -> json
+  val to_json : t -> Jsonoo.t
 end [@js.scope "vscode.Uri"]
 
 module TextDocument : sig
@@ -476,7 +472,7 @@ module TextEditorOptions : sig
 end
 
 module TextEditorDecorationType : sig
-  type t = private (* interface *) Disposable.like
+  type t = private (* interface *) Disposable.t
 
   val key : t -> string [@@js.get]
 
@@ -784,20 +780,18 @@ module WorkspaceConfiguration : sig
 
   type inspect_result =
     { key : string
-    ; default_value : json or_undefined
-    ; global_value : json or_undefined
-    ; workspace_value : json or_undefined
-    ; workspace_folder_value : json or_undefined
-    ; default_language_value : json or_undefined
-    ; global_language_value : json or_undefined
-    ; workspace_language_value : json or_undefined
-    ; workspace_folder_language_value : json or_undefined
+    ; default_value : Jsonoo.t or_undefined
+    ; global_value : Jsonoo.t or_undefined
+    ; workspace_value : Jsonoo.t or_undefined
+    ; workspace_folder_value : Jsonoo.t or_undefined
+    ; default_language_value : Jsonoo.t or_undefined
+    ; global_language_value : Jsonoo.t or_undefined
+    ; workspace_language_value : Jsonoo.t or_undefined
+    ; workspace_folder_language_value : Jsonoo.t or_undefined
     ; language_ids : string list or_undefined
     }
 
-  val get :
-    t -> section:string -> ?default_value:json -> unit -> json or_undefined
-    [@@js.call]
+  val get : t -> section:string -> unit -> Jsonoo.t or_undefined [@@js.call]
 
   val has : t -> section:string -> bool [@@js.call]
 
@@ -806,7 +800,7 @@ module WorkspaceConfiguration : sig
   val update :
        t
     -> section:string
-    -> value:json
+    -> value:Jsonoo.t
     -> ?configuration_target:configuration_target
     -> ?override_in_language:bool
     -> unit
@@ -832,7 +826,7 @@ module AccessibilityInformation : sig
 end
 
 module StatusBarItem : sig
-  type t = private (* interface *) Disposable.like
+  type t = private (* interface *) Disposable.t
 
   type color =
     ([ `String of string
@@ -1076,7 +1070,8 @@ end
 module ProgressOptions : sig
   type t = private (* interface *) Ojs.t
 
-  val location : t -> ProgressLocation.t [@@js.get]
+  val location : t -> ProgressLocation.t
+    (* TODO or { viewId: string } *) [@@js.get]
 
   val title : t -> string or_undefined [@@js.get]
 
@@ -1218,7 +1213,7 @@ module TerminalExitStatus : sig
 end
 
 module Terminal : sig
-  type t = private (* interface *) Disposable.like
+  type t = private (* interface *) Disposable.t
 
   type creation_options =
     ([ `TerminalOptions of TerminalOptions.t
@@ -1252,7 +1247,7 @@ module Terminal : sig
 end
 
 module OutputChannel : sig
-  type t = private (* interface *) Disposable.like
+  type t = private (* interface *) Disposable.t
 
   val name : t -> string [@@js.get]
 
@@ -1262,9 +1257,158 @@ module OutputChannel : sig
 
   val clear : t -> unit
 
-  val show : t -> ?preserveFocus:bool -> unit -> unit [@@js.call]
+  val show : t -> ?preserve_focus:bool -> unit -> unit [@@js.call]
 
   val hide : t -> unit [@@js.call]
 
   val dispose : t -> unit [@@js.call]
+end
+
+module Memento : sig
+  type t = private (* interface *) Ojs.t
+
+  val get : t -> key:string -> Jsonoo.t or_undefined
+
+  val update : t -> key:string -> value:Jsonoo.t -> Promise.void
+end
+
+module EnvironmentVariableMutatorType : sig
+  type t =
+    | Replace [@js 1]
+    | Append [@js 2]
+    | Prepend [@js 3]
+  [@@js.enum]
+end
+
+module EnvironmentVariableMutator : sig
+  type t = private (* interface *) Ojs.t
+
+  val type_ : t -> EnvironmentVariableMutatorType.t [@@js.get]
+
+  val value : t -> string [@@js.get]
+end
+
+module EnvironmentVariableCollection : sig
+  type t = private (* interface *) Ojs.t
+
+  val persistent : t -> bool [@@js.get]
+
+  val replace : t -> variable:string -> value:string -> unit [@@js.call]
+
+  val append : t -> variable:string -> value:string -> unit [@@js.call]
+
+  val prepend : t -> variable:string -> value:string -> unit [@@js.call]
+
+  val get : t -> variable:string -> EnvironmentVariableMutator.t or_undefined
+    [@@js.call]
+
+  val for_each :
+       t
+    -> callback:
+         (   variable:string
+          -> mutator:EnvironmentVariableMutator.t
+          -> collection:t
+          -> unit)
+    -> unit
+    [@@js.call]
+
+  val delete : t -> variable:string -> unit [@@js.call]
+
+  val clear : t -> unit [@@js.call]
+end
+
+module ExtensionMode : sig
+  type t =
+    | Production [@js 1]
+    | Development [@js 2]
+    | Test [@js 3]
+  [@@js.enum]
+end
+
+module ExtensionContext : sig
+  type t = private (* interface *) Ojs.t
+
+  val subscriptions : t -> Disposable.t list [@@js.get]
+
+  val workspace_state : t -> Memento.t [@@js.get]
+
+  val global_state : t -> Memento.t [@@js.get]
+
+  val extension_uri : t -> Uri.t [@@js.get]
+
+  val extension_path : t -> string [@@js.get]
+
+  val environment_variable_collection : t -> EnvironmentVariableCollection.t
+    [@@js.get]
+
+  val as_absolute_path : t -> relative_path:string -> string [@@js.call]
+
+  val storage_path : t -> string or_undefined [@@js.get]
+
+  val global_storage_path : t -> string [@@js.get]
+
+  val log_path : t -> string [@@js.get]
+
+  val extension_mode : t -> ExtensionMode.t [@@js.get]
+end
+
+module ShellQuotingOptions : sig
+  type t = private (* interface *) Ojs.t
+
+  module Escape : sig
+    type literal = private (* interface *) Ojs.t
+
+    type t =
+      ([ `String of string
+       | `Literal of literal
+       ]
+      [@js.union])
+
+    [@@@js.implem
+    let t_of_js js_val =
+      match Ojs.type_of js_val with
+      | "string" -> `String (Ojs.string_of_js js_val)
+      | _        -> `Literal (t_of_js js_val)]
+
+    val escape_char : literal -> string [@@js.get]
+
+    val chars_to_escape : literal -> string [@@js.get]
+
+    val literal :
+      escape_char:string -> chars_to_escape:string -> unit -> literal
+      [@@js.builder]
+  end
+
+  val escape : t -> Escape.t or_undefined [@@js.get]
+
+  val strong : t -> string or_undefined [@@js.get]
+
+  val weak : t -> string or_undefined [@@js.get]
+
+  val create : ?escape:Escape.t -> ?strong:string -> ?weak:string -> unit -> t
+    [@@js.builder]
+end
+
+module ShellExecutionOptions : sig
+  type t = private (* interface *) Ojs.t
+
+  val executable : t -> string or_undefined [@@js.get]
+
+  val shell_args : t -> string list or_undefined [@@js.get]
+
+  val shell_quoting : t -> ShellQuotingOptions.t or_undefined [@@js.get]
+
+  val cwd : t -> string or_undefined [@@js.get]
+
+  val env : t -> Ojs.t [@@js.get] (* TODO separate hashmap/object type *)
+
+  val create :
+       ?executable:string
+    -> ?shell_args:string list
+    -> ?shell_quoting:ShellQuotingOptions.t
+    -> ?cwd:string
+    -> ?env:Ojs.t
+    -> unit
+    -> t
+    [@@js.builder]
 end
