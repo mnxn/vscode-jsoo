@@ -925,8 +925,8 @@ module Event : sig
   val subscribe : 'a t -> listener:('a -> unit) -> unit
     [@@js.custom
       let subscribe t ~listener =
+        let js_listener js_arg = listener (t.a_of_js js_arg) in
         let (_ : Ojs.t) =
-          let js_listener js_arg = listener (t.a_of_js js_arg) in
           Ojs.call t.js "call" [| Ojs.null; Ojs.fun_to_js 1 js_listener |]
         in
         ()]
@@ -1011,6 +1011,33 @@ module QuickPickOptions : sig
     [@@js.builder]
 end
 
+module ProviderResult : sig
+  [@@@js.stop]
+
+  type 'a t =
+    [ `Value of 'a or_undefined
+    | `Promise of 'a or_undefined Promise.t
+    ]
+
+  [@@@js.start]
+
+  [@@@js.implem
+  type 'a t =
+    [ `Value of 'a or_undefined
+    | `Promise of 'a or_undefined Promise.t
+    ]
+
+  let t_to_js to_js = function
+    | `Value v   -> or_undefined_to_js to_js v
+    | `Promise p -> Promise.t_to_js (or_undefined_to_js to_js) p
+
+  let t_of_js of_js js_val =
+    if Ojs.has_property js_val "then" then
+      `Promise (Promise.t_of_js (or_undefined_of_js of_js) js_val)
+    else
+      `Value (or_undefined_of_js of_js js_val)]
+end
+
 module InputBoxOptions : sig
   type t = private (* interface *) Ojs.t
 
@@ -1026,7 +1053,7 @@ module InputBoxOptions : sig
 
   val ignore_focus_out : t -> bool or_undefined [@@js.get]
 
-  val validate_input : t -> (string -> string option Promise.t) or_undefined
+  val validate_input : t -> (string -> string ProviderResult.t) or_undefined
     [@@js.get]
 
   val create :
@@ -1079,19 +1106,35 @@ end
 module ProgressOptions : sig
   type t = private (* interface *) Ojs.t
 
-  val location : t -> ProgressLocation.t
-    (* TODO or { viewId: string } *) [@@js.get]
+  module Location : sig
+    type view_id_location = private (* interface *) Ojs.t
+
+    type t =
+      ([ `ProgressLocation of ProgressLocation.t
+       | `ViewIdLocation of view_id_location
+       ]
+      [@js.union])
+
+    [@@@js.implem
+    let t_of_js js_val =
+      match Ojs.type_of js_val with
+      | "number" -> `ProgressLocation (ProgressLocation.t_of_js js_val)
+      | _        -> `ViewIdLocation (view_id_location_of_js js_val)]
+
+    val view_id : view_id_location -> string [@@js.get]
+
+    val view_id_location : view_id:string -> unit -> view_id_location
+      [@@js.builder]
+  end
+
+  val location : t -> Location.t [@@js.get]
 
   val title : t -> string or_undefined [@@js.get]
 
   val cancellable : t -> bool or_undefined [@@js.get]
 
   val create :
-       location:ProgressLocation.t
-    -> ?title:string
-    -> ?cancellable:bool
-    -> unit
-    -> t
+    location:Location.t -> ?title:string -> ?cancellable:bool -> unit -> t
     [@@js.builder]
 end
 
@@ -1359,6 +1402,13 @@ module ExtensionContext : sig
   val log_path : t -> string [@@js.get]
 
   val extension_mode : t -> ExtensionMode.t [@@js.get]
+
+  val subscribe : t -> disposable:Disposable.t -> unit
+    [@@js.custom
+      let subscribe this ~disposable =
+        let subscriptions = Ojs.get this "subscriptions" in
+        let (_ : Ojs.t) = Ojs.call subscriptions "push" [| disposable |] in
+        ()]
 end
 
 module ShellQuotingOptions : sig
@@ -1507,4 +1557,115 @@ module ProcessExecution : sig
   val args : t -> string list [@@js.get]
 
   val options : t -> ProcessExecutionOptions.t or_undefined [@@js.get]
+end
+
+module RelativePattern : sig
+  type t = private (* class *) Ojs.t
+
+  val base : t -> string [@@js.get]
+
+  val pattern : t -> string [@@js.get]
+
+  val make :
+       base:([ `WorkspaceFolder of WorkspaceFolder.t | `String of string ]
+         [@js.union])
+    -> pattern:string
+    -> unit
+    -> t
+    [@@js.new "vscode.RelativePattern"]
+end
+
+module GlobPattern : sig
+  type t =
+    ([ `String of string
+     | `RelativePattern of RelativePattern.t
+     ]
+    [@js.union])
+
+  [@@@js.implem
+  let t_of_js js_val =
+    match Ojs.type_of js_val with
+    | "string" -> `String (Ojs.string_of_js js_val)
+    | _        -> `RelativePattern (RelativePattern.t_of_js js_val)]
+end
+
+module DocumentFilter : sig
+  type t = private (* interface *) Ojs.t
+
+  val language : t -> string or_undefined [@@js.get]
+
+  val scheme : t -> string or_undefined [@@js.get]
+
+  val pattern : t -> GlobPattern.t or_undefined [@@js.get]
+
+  val create :
+    ?language:string -> ?scheme:string -> ?pattern:GlobPattern.t -> unit -> t
+    [@@js.builder]
+end
+
+module DocumentSelector : sig
+  type selectors =
+    ([ `DocumentFilter of DocumentFilter.t
+     | `String of string
+     ]
+    [@js.union])
+
+  [@@@js.implem
+  let selectors_of_js js_val =
+    match Ojs.type_of js_val with
+    | "string" -> `String (Ojs.string_of_js js_val)
+    | _        -> `DocumentFilter (DocumentFilter.t_of_js js_val)]
+
+  type t =
+    ([ `DocumentFilter of DocumentFilter.t
+     | `String of string
+     | `List of selectors list
+     ]
+    [@js.union])
+
+  [@@@js.implem
+  let t_of_js js_val =
+    if Ojs.type_of js_val = "string" then
+      `String (Ojs.string_of_js js_val)
+    else if Ojs.has_property js_val "length" then
+      `List (Ojs.list_of_js selectors_of_js js_val)
+    else
+      `DocumentFilter (DocumentFilter.t_of_js js_val)]
+
+  val x : t -> t [@@js.get]
+end
+
+module DocumentFormattingEditProvider : sig
+  type t = private (* interface *) Ojs.t
+
+  val provide_document_formatting_edits :
+       t
+    -> document:TextDocument.t
+    -> options:FormattingOptions.t
+    -> token:CancellationToken.t
+    -> TextEdit.t list ProviderResult.t
+    [@@js.call]
+
+  val create :
+       provide_document_formatting_edits:
+         (   t
+          -> document:TextDocument.t
+          -> options:FormattingOptions.t
+          -> token:CancellationToken.t
+          -> TextEdit.t list ProviderResult.t)
+    -> unit
+    -> t
+    [@@js.builder]
+end
+
+module TaskGroup : sig
+  type t = private (* class *) Ojs.t
+
+  val clean : t [@@js.global "vscode.TaskGroup.Clean"]
+
+  val build : t [@@js.global "vscode.TaskGroup.Build"]
+
+  val rebuild : t [@@js.global "vscode.TaskGroup.Rebuild"]
+
+  val test : t [@@js.global "vscode.TaskGroup.Test"]
 end
