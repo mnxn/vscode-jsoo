@@ -136,7 +136,6 @@ module Range : sig
     -> start_character:int
     -> end_line:int
     -> end_character:int
-    -> unit
     -> t
     [@@js.new "vscode.Range"]
 
@@ -182,7 +181,6 @@ module TextLine : sig
     -> range_including_line_break:Range.t
     -> first_non_whitespace_character_index:int
     -> is_empty_or_whitespace:bool
-    -> unit
     -> t
     [@@js.builder]
 end
@@ -314,7 +312,7 @@ module WorkspaceFolder : sig
 
   val index : t -> int [@@js.get]
 
-  val create : uri:Uri.t -> name:string -> index:int -> unit -> t [@@js.builder]
+  val create : uri:Uri.t -> name:string -> index:int -> t [@@js.builder]
 end
 
 module ViewColumn : sig
@@ -400,7 +398,6 @@ module TextEditorEdit : sig
     -> insert:(location:Position.t -> value:string -> unit)
     -> delete:(location:delete_location -> unit)
     -> set_end_of_line:(end_of_line:EndOfLine.t -> t)
-    -> unit
     -> t
     [@@js.builder]
 end
@@ -491,7 +488,7 @@ module TextEditorDecorationType : sig
     [@@js.custom
       let disposable this = Disposable.make ~dispose:(fun () -> dispose this)]
 
-  val create : key:string -> dispose:(unit -> unit) -> unit -> t [@@js.builder]
+  val create : key:string -> dispose:(unit -> unit) -> t [@@js.builder]
 end
 
 module MarkdownString : sig
@@ -835,7 +832,7 @@ module AccessibilityInformation : sig
 
   val role : t -> string or_undefined [@@js.get]
 
-  val create : label:string -> ?role:string -> unit -> unit [@@js.builder]
+  val create : label:string -> ?role:string -> unit -> t [@@js.builder]
 end
 
 module StatusBarItem : sig
@@ -899,7 +896,7 @@ module WorkspaceFoldersChangeEvent : sig
   val removed : t -> WorkspaceFolder.t list [@@js.get]
 
   val create :
-    added:WorkspaceFolder.t list -> removed:WorkspaceFolder.t list -> unit -> t
+    added:WorkspaceFolder.t list -> removed:WorkspaceFolder.t list -> t
     [@@js.builder]
 end
 
@@ -910,7 +907,7 @@ module FormattingOptions : sig
 
   val insert_spaces : t -> bool [@@js.get]
 
-  val create : tab_size:int -> insert_spaces:bool -> unit -> t [@@js.builder]
+  val create : tab_size:int -> insert_spaces:bool -> t [@@js.builder]
 end
 
 module Event : sig
@@ -952,7 +949,6 @@ module CancellationToken : sig
   val create :
        is_cancellation_requested:bool
     -> on_cancellation_requested:Ojs.t Event.t
-    -> unit
     -> t
     [@@js.builder]
 end
@@ -1133,8 +1129,7 @@ module ProgressOptions : sig
 
     val view_id : view_id_location -> string [@@js.get]
 
-    val view_id_location : view_id:string -> unit -> view_id_location
-      [@@js.builder]
+    val view_id_location : view_id:string -> view_id_location [@@js.builder]
   end
 
   val location : t -> Location.t [@@js.get]
@@ -1218,7 +1213,7 @@ module TerminalDimensions : sig
 
   val rows : t -> int [@@js.get]
 
-  val create : columns:int -> rows:int -> unit -> t [@@js.builder]
+  val create : columns:int -> rows:int -> t [@@js.builder]
 end
 
 module Pseudoterminal : sig
@@ -1263,7 +1258,7 @@ module ExtensionTerminalOptions : sig
 
   val pty : t -> Pseudoterminal.t [@@js.get]
 
-  val create : name:string -> pty:Pseudoterminal.t -> unit -> t [@@js.builder]
+  val create : name:string -> pty:Pseudoterminal.t -> t [@@js.builder]
 end
 
 module TerminalExitStatus : sig
@@ -1271,7 +1266,7 @@ module TerminalExitStatus : sig
 
   val code : t -> int [@@js.get]
 
-  val create : code:int -> unit -> t [@@js.builder]
+  val create : code:int -> t [@@js.builder]
 end
 
 module Terminal : sig
@@ -1451,8 +1446,7 @@ module ShellQuotingOptions : sig
 
     val chars_to_escape : literal -> string [@@js.get]
 
-    val literal :
-      escape_char:string -> chars_to_escape:string -> unit -> literal
+    val literal : escape_char:string -> chars_to_escape:string -> literal
       [@@js.builder]
   end
 
@@ -1505,8 +1499,7 @@ module ShellQuotedString : sig
 
   val quoting : t -> ShellQuoting.t [@@js.get]
 
-  val create : value:string -> quoting:ShellQuoting.t -> unit -> t
-    [@@js.builder]
+  val create : value:string -> quoting:ShellQuoting.t -> t [@@js.builder]
 end
 
 module ShellExecution : sig
@@ -1577,6 +1570,13 @@ module ProcessExecution : sig
   val options : t -> ProcessExecutionOptions.t or_undefined [@@js.get]
 end
 
+module CustomExecution : sig
+  type t = private (* class *) Ojs.t
+
+  val make : callback:(unit -> Pseudoterminal.t Promise.t) -> t
+    [@@js.new "vscode.CustomExecution"]
+end
+
 module RelativePattern : sig
   type t = private (* class *) Ojs.t
 
@@ -1588,7 +1588,6 @@ module RelativePattern : sig
        base:([ `WorkspaceFolder of WorkspaceFolder.t | `String of string ]
          [@js.union])
     -> pattern:string
-    -> unit
     -> t
     [@@js.new "vscode.RelativePattern"]
 end
@@ -1671,7 +1670,6 @@ module DocumentFormattingEditProvider : sig
           -> options:FormattingOptions.t
           -> token:CancellationToken.t
           -> TextEdit.t list ProviderResult.t)
-    -> unit
     -> t
     [@@js.builder]
 end
@@ -1686,4 +1684,181 @@ module TaskGroup : sig
   val rebuild : t [@@js.global "vscode.TaskGroup.Rebuild"]
 
   val test : t [@@js.global "vscode.TaskGroup.Test"]
+end
+
+module TaskScope : sig
+  type t =
+    | Global [@js 1]
+    | Workspace [@js 2]
+  [@@js.enum]
+end
+
+module RunOptions : sig
+  type t = private (* interface *) Ojs.t
+
+  val reevaluate_on_rerun : t -> bool or_undefined [@@js.get]
+
+  val create : ?reevaluate_on_rerun:bool -> unit -> t [@@js.builder]
+end
+
+module TaskDefinition : sig
+  type t = private (* interface *) Ojs.t
+
+  val type_ : t -> string [@@js.get]
+
+  val get_attribute : t -> string -> Ojs.t
+    [@@js.custom let get_attribute = Ojs.get]
+
+  val set_attribute : t -> string -> Ojs.t -> unit
+    [@@js.custom let set_attribute = Ojs.set]
+
+  val create : type_:string -> attributes:(string, Ojs.t) Hashtbl.t -> unit -> t
+    [@@js.custom
+      let create ~type_ ~attributes () =
+        let obj = Ojs.obj [| ("type", Ojs.string_to_js type_) |] in
+        Hashtbl.iter (Ojs.set obj) attributes;
+        obj]
+end
+
+module TaskRevealKind : sig
+  type t =
+    | Always [@js 1]
+    | Silent [@js 2]
+    | Never [@js 3]
+  [@@js.enum]
+end
+
+module TaskPanelKind : sig
+  type t =
+    | Shared [@js 1]
+    | Dedicated [@js 2]
+    | New [@js 3]
+  [@@js.enum]
+end
+
+module TaskPresentationOptions : sig
+  type t = private (* interface *) Ojs.t
+
+  val reveal : t -> TaskRevealKind.t or_undefined [@@js.get]
+
+  val echo : t -> bool or_undefined [@@js.get]
+
+  val focus : t -> bool or_undefined [@@js.get]
+
+  val panel : t -> TaskPanelKind.t or_undefined [@@js.get]
+
+  val show_reuse_message : t -> bool or_undefined [@@js.get]
+
+  val clear : t -> bool or_undefined [@@js.get]
+
+  val create :
+       ?reveal:TaskRevealKind.t
+    -> ?echo:bool
+    -> ?focus:bool
+    -> ?panel:TaskPanelKind.t
+    -> ?show_reuse_message:bool
+    -> ?clear:bool
+    -> unit
+    -> t
+    [@@js.builder]
+end
+
+module Task : sig
+  type t = private (* class *) Ojs.t
+
+  type scope =
+    ([ `WorkspaceFolder of WorkspaceFolder.t
+     | `TaskScope of TaskScope.t
+     ]
+    [@js.union])
+
+  [@@@js.implem
+  let scope_of_js js_val =
+    match Ojs.type_of js_val with
+    | "number" -> `TaskScope (TaskScope.t_of_js js_val)
+    | _        -> `WorkspaceFolder (WorkspaceFolder.t_of_js js_val)]
+
+  type execution =
+    ([ `ProcessExecution of ProcessExecution.t
+     | `ShellExecution of ShellExecution.t
+     | `CustomExecution of CustomExecution.t
+     ]
+    [@js.union])
+
+  [@@@js.implem
+  let execution_of_js js_val =
+    if Ojs.has_property js_val "process" then
+      `ProcessExecution (ProcessExecution.t_of_js js_val)
+    else if Ojs.has_property js_val "command" then
+      `ShellExecution (ShellExecution.t_of_js js_val)
+    else
+      `CustomExecution (CustomExecution.t_of_js js_val)]
+
+  type problem_matchers =
+    ([ `String of string
+     | `Strings of string list
+     ]
+    [@js.union])
+
+  [@@@js.implem
+  let problem_matchers_of_js js_val =
+    match Ojs.type_of js_val with
+    | "string" -> `String (Ojs.string_of_js js_val)
+    | _        -> `Strings (Ojs.list_of_js Ojs.string_of_js js_val)]
+
+  val make :
+       definition:TaskDefinition.t
+    -> scope:scope
+    -> name:string
+    -> source:string
+    -> ?execution:execution
+    -> ?problem_matchers:problem_matchers
+    -> unit
+    -> t
+    [@@js.new "vscode.Task"]
+
+  val definition : t -> TaskDefinition.t [@@js.get]
+
+  val scope : t -> scope or_undefined [@@js.get]
+
+  val name : t -> string [@@js.get]
+
+  val execution : t -> execution or_undefined [@@js.get]
+
+  val is_background : t -> bool [@@js.get]
+
+  val source : t -> string [@@js.get]
+
+  val group : t -> TaskGroup.t or_undefined [@@js.get]
+
+  val presentation_options : t -> TaskPresentationOptions.t [@@js.get]
+
+  val run_options : t -> RunOptions.t [@@js.get]
+end
+
+module TaskProvider : sig
+  type t = private (* interface *) Ojs.t
+
+  val provide_tasks :
+    t -> ?token:CancellationToken.t -> unit -> Task.t list ProviderResult.t
+    [@@js.call]
+
+  val resolve_tasks :
+       t
+    -> task:Task.t
+    -> ?token:CancellationToken.t
+    -> unit
+    -> Task.t ProviderResult.t
+    [@@js.call]
+
+  val create :
+       provide_tasks:
+         (?token:CancellationToken.t -> unit -> Task.t list ProviderResult.t)
+    -> resolve_tasks:
+         (   task:Task.t
+          -> ?token:CancellationToken.t
+          -> unit
+          -> Task.t ProviderResult.t)
+    -> t
+    [@@js.builder]
 end
