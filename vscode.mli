@@ -1112,25 +1112,19 @@ end
 module ProgressOptions : sig
   type t = private (* interface *) Ojs.t
 
-  module Location : sig
-    type view_id_location = private (* interface *) Ojs.t
+  type view_id_location = { view_id : string }
 
-    type t =
-      ([ `ProgressLocation of ProgressLocation.t
-       | `ViewIdLocation of view_id_location
-       ]
-      [@js.union])
+  type location =
+    ([ `ProgressLocation of ProgressLocation.t
+     | `ViewIdLocation of view_id_location
+     ]
+    [@js.union])
 
-    [@@@js.implem
-    let t_of_js js_val =
-      match Ojs.type_of js_val with
-      | "number" -> `ProgressLocation (ProgressLocation.t_of_js js_val)
-      | _        -> `ViewIdLocation (view_id_location_of_js js_val)]
-
-    val view_id : view_id_location -> string [@@js.get]
-
-    val view_id_location : view_id:string -> view_id_location [@@js.builder]
-  end
+  [@@@js.implem
+  let location_of_js js_val =
+    match Ojs.type_of js_val with
+    | "number" -> `ProgressLocation (ProgressLocation.t_of_js js_val)
+    | _        -> `ViewIdLocation (view_id_location_of_js js_val)]
 
   val location : t -> Location.t [@@js.get]
 
@@ -1427,36 +1421,30 @@ end
 module ShellQuotingOptions : sig
   type t = private (* interface *) Ojs.t
 
-  module Escape : sig
-    type literal = private (* interface *) Ojs.t
+  type escape_literal =
+    { escape_char : string
+    ; chars_to_escape : string
+    }
 
-    type t =
-      ([ `String of string
-       | `Literal of literal
-       ]
-      [@js.union])
+  type escape =
+    ([ `String of string
+     | `Literal of escape_literal
+     ]
+    [@js.union])
 
-    [@@@js.implem
-    let t_of_js js_val =
-      match Ojs.type_of js_val with
-      | "string" -> `String (Ojs.string_of_js js_val)
-      | _        -> `Literal (t_of_js js_val)]
+  [@@@js.implem
+  let escape_of_js js_val =
+    match Ojs.type_of js_val with
+    | "string" -> `String (Ojs.string_of_js js_val)
+    | _        -> `Literal (escape_literal_of_js js_val)]
 
-    val escape_char : literal -> string [@@js.get]
-
-    val chars_to_escape : literal -> string [@@js.get]
-
-    val literal : escape_char:string -> chars_to_escape:string -> literal
-      [@@js.builder]
-  end
-
-  val escape : t -> Escape.t or_undefined [@@js.get]
+  val escape : t -> escape or_undefined [@@js.get]
 
   val strong : t -> string or_undefined [@@js.get]
 
   val weak : t -> string or_undefined [@@js.get]
 
-  val create : ?escape:Escape.t -> ?strong:string -> ?weak:string -> unit -> t
+  val create : ?escape:escape -> ?strong:string -> ?weak:string -> unit -> t
     [@@js.builder]
 end
 
