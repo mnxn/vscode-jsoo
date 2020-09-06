@@ -481,11 +481,15 @@ module TextEditorOptions : sig
 end
 
 module TextEditorDecorationType : sig
-  type t = private (* interface *) Disposable.t
+  type t = private (* interface *) Ojs.t
 
   val key : t -> string [@@js.get]
 
   val dispose : t -> unit [@@js.call]
+
+  val disposable : t -> Disposable.t
+    [@@js.custom
+      let disposable this = Disposable.make ~dispose:(fun () -> dispose this)]
 
   val create : key:string -> dispose:(unit -> unit) -> unit -> t [@@js.builder]
 end
@@ -835,7 +839,7 @@ module AccessibilityInformation : sig
 end
 
 module StatusBarItem : sig
-  type t = private (* interface *) Disposable.t
+  type t = private (* interface *) Ojs.t
 
   type color =
     ([ `String of string
@@ -881,6 +885,10 @@ module StatusBarItem : sig
   val hide : t -> unit [@@js.call]
 
   val dispose : t -> unit [@@js.call]
+
+  val disposable : t -> Disposable.t
+    [@@js.custom
+      let disposable this = Disposable.make ~dispose:(fun () -> dispose this)]
 end
 
 module WorkspaceFoldersChangeEvent : sig
@@ -1265,7 +1273,7 @@ module TerminalExitStatus : sig
 end
 
 module Terminal : sig
-  type t = private (* interface *) Disposable.t
+  type t = private (* interface *) Ojs.t
 
   type creation_options =
     ([ `TerminalOptions of TerminalOptions.t
@@ -1296,10 +1304,14 @@ module Terminal : sig
   val hide : t -> unit [@@js.call]
 
   val dispose : t -> unit [@@js.call]
+
+  val disposable : t -> Disposable.t
+    [@@js.custom
+      let disposable this = Disposable.make ~dispose:(fun () -> dispose this)]
 end
 
 module OutputChannel : sig
-  type t = private (* interface *) Disposable.t
+  type t = private (* interface *) Ojs.t
 
   val name : t -> string [@@js.get]
 
@@ -1314,6 +1326,10 @@ module OutputChannel : sig
   val hide : t -> unit [@@js.call]
 
   val dispose : t -> unit [@@js.call]
+
+  val disposable : t -> Disposable.t
+    [@@js.custom
+      let disposable this = Disposable.make ~dispose:(fun () -> dispose this)]
 end
 
 module Memento : sig
