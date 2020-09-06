@@ -2,10 +2,14 @@
 
 type 'a or_undefined = 'a option
 
+type 'a maybe_list = 'a list
+
 [@@@js.start]
 
 [@@@js.implem
 type 'a or_undefined = 'a option
+
+type 'a maybe_list = 'a list
 
 let undefined = Ojs.variable "undefined"
 
@@ -18,6 +22,16 @@ let or_undefined_of_js ml_of_js js_val =
 let or_undefined_to_js ml_to_js = function
   | Some ml_val -> ml_to_js ml_val
   | None        -> undefined
+
+let maybe_list_of_js ml_of_js js_val =
+  if js_val != undefined && js_val != Ojs.null then
+    Ojs.list_of_js ml_of_js js_val
+  else
+    []
+
+let maybe_list_to_js ml_to_js = function
+  | [] -> undefined
+  | xs -> Ojs.list_to_js ml_to_js xs
 
 let iter_set obj field f value =
   Option.iter (fun value -> Ojs.set obj field (f value)) value]
@@ -82,13 +96,13 @@ module Command : sig
 
   val tooltip : t -> string or_undefined [@@js.get]
 
-  val arguments : t -> Ojs.t list or_undefined [@@js.get]
+  val arguments : t -> Ojs.t maybe_list [@@js.get]
 
   val create :
        title:string
     -> command:string
     -> ?tooltip:string
-    -> ?arguments:Ojs.t array
+    -> ?arguments:Ojs.t list
     -> unit
     -> t
     [@@js.builder]
@@ -798,7 +812,7 @@ module WorkspaceConfiguration : sig
     ; global_language_value : Jsonoo.t or_undefined
     ; workspace_language_value : Jsonoo.t or_undefined
     ; workspace_folder_language_value : Jsonoo.t or_undefined
-    ; language_ids : string list or_undefined
+    ; language_ids : string or_undefined
     }
 
   val get : t -> section:string -> unit -> Jsonoo.t or_undefined [@@js.call]
@@ -1342,7 +1356,7 @@ end
 module EnvironmentVariableMutator : sig
   type t = private (* interface *) Ojs.t
 
-  val type_ : t -> EnvironmentVariableMutatorType.t [@@js.get]
+  val type_ : t -> EnvironmentVariableMutatorType.t [@@js.get "type"]
 
   val value : t -> string [@@js.get]
 end
@@ -1453,7 +1467,7 @@ module ShellExecutionOptions : sig
 
   val executable : t -> string or_undefined [@@js.get]
 
-  val shell_args : t -> string list or_undefined [@@js.get]
+  val shell_args : t -> string maybe_list [@@js.get]
 
   val shell_quoting : t -> ShellQuotingOptions.t or_undefined [@@js.get]
 
@@ -1636,8 +1650,6 @@ module DocumentSelector : sig
       `List (Ojs.list_of_js selectors_of_js js_val)
     else
       `DocumentFilter (DocumentFilter.t_of_js js_val)]
-
-  val x : t -> t [@@js.get]
 end
 
 module DocumentFormattingEditProvider : sig
@@ -1850,3 +1862,274 @@ module TaskProvider : sig
     -> t
     [@@js.builder]
 end
+
+module ConfigurationScope : sig
+  type t =
+    ([ `Uri of Uri.t
+     | `TextDocument of TextDocument.t
+     | `WorkspaceFolder of WorkspaceFolder.t
+     ]
+    [@js.union])
+end
+
+module MessageOptions : sig
+  type t = private (* interface *) Ojs.t
+
+  val modal : t -> bool or_undefined [@@js.get]
+
+  val create : ?modal:bool -> unit -> t [@@js.builder]
+end
+
+module Progress : sig
+  type value =
+    { message : string or_undefined
+    ; increment : int or_undefined
+    }
+
+  type t = private Ojs.t
+
+  val report : t -> value:value -> unit [@@js.call]
+end
+
+module Workspace : sig
+  val workspace_folders : unit -> WorkspaceFolder.t [@@js.get]
+
+  val name : unit -> string or_undefined [@@js.get]
+
+  val workspace_file : unit -> Uri.t or_undefined [@@js.get]
+
+  val text_documents : unit -> TextDocument.t list [@@js.get]
+
+  val on_did_change_workspace_folders : WorkspaceFolder.t Event.t [@@js.global]
+
+  val get_workspace_folder : uri:Uri.t -> WorkspaceFolder.t or_undefined
+    [@@js.global]
+
+  val on_did_open_text_document : TextDocument.t Event.t [@@js.global]
+
+  val on_did_close_text_document : TextDocument.t Event.t [@@js.global]
+
+  val get_configuration :
+       ?section:string
+    -> ?scope:ConfigurationScope.t
+    -> unit
+    -> WorkspaceConfiguration.t
+    [@@js.global]
+
+  val find_files :
+       includes:GlobPattern.t
+    -> ?excludes:GlobPattern.t
+    -> ?max_results:int
+    -> ?token:CancellationToken.t
+    -> unit
+    -> Uri.t list Promise.t
+    [@@js.global]
+
+  type text_document_options =
+    { language : string
+    ; content : string
+    }
+
+  val open_text_document :
+       ([ `Uri of Uri.t
+        | `Filename of string
+        | `Interactive of text_document_options or_undefined
+        ]
+       [@js.union])
+    -> TextDocument.t Promise.t
+    [@@js.global]
+end [@js.scope "vscode.workspace"]
+
+module Window : sig
+  val active_text_editor : unit -> TextEditor.t or_undefined [@@js.get]
+
+  val show_quick_pick :
+       items:string list
+    -> ?options:QuickPickOptions.t
+    -> ?token:CancellationToken.t
+    -> unit
+    -> string or_undefined Promise.t
+    [@@js.global]
+
+  val show_quick_pick_items :
+       choices:(QuickPickItem.t * 'a) list
+    -> ?options:QuickPickOptions.t
+    -> ?token:CancellationToken.t
+    -> unit
+    -> 'a or_undefined Promise.t
+    [@@js.custom
+      val show_quick_pick_items :
+           choices:QuickPickItem.t list
+        -> ?options:QuickPickOptions.t
+        -> ?token:CancellationToken.t
+        -> unit
+        -> QuickPickItem.t or_undefined Promise.t
+        [@@js.global "vscode.window.showQuickPickItems"]
+
+      let show_quick_pick_items ~choices ?options ?token () =
+        let open Promise.Syntax in
+        show_quick_pick_items ~choices:(List.map fst choices) ?options ?token ()
+        >>| Option.map (fun q -> List.assq q choices)]
+
+  val show_input_box :
+       ?options:InputBoxOptions.t
+    -> ?token:CancellationToken.t
+    -> unit
+    -> string or_undefined Promise.t
+    [@@js.global]
+
+  [@@@js.implem
+  let get_choices choices =
+    choices
+    |> List.map (fun (title, choice) -> (MessageItem.create ~title (), choice))]
+
+  val show_information_message :
+       message:string
+    -> ?options:MessageOptions.t
+    -> choices:(string * 'a) list
+    -> 'a or_undefined Promise.t
+    [@@js.custom
+      val show_information_message :
+           message:string
+        -> ?options:MessageOptions.t
+        -> items:(MessageItem.t list[@js.variadic])
+        -> MessageItem.t or_undefined Promise.t
+        [@@js.global]
+
+      let show_information_message ~message ?options ~choices =
+        let choices = get_choices choices in
+        let open Promise.Syntax in
+        show_information_message ~message ?options ~items:(List.map fst choices)
+        >>| Option.map (fun q -> List.assq q choices)]
+
+  val show_warning_message :
+       message:string
+    -> ?options:MessageOptions.t
+    -> choices:(string * 'a) list
+    -> 'a or_undefined Promise.t
+    [@@js.custom
+      val show_warning_message :
+           message:string
+        -> ?options:MessageOptions.t
+        -> items:(MessageItem.t list[@js.variadic])
+        -> MessageItem.t or_undefined Promise.t
+        [@@js.global]
+
+      let show_warning_message ~message ?options ~choices =
+        let choices = get_choices choices in
+        let open Promise.Syntax in
+        show_warning_message ~message ?options ~items:(List.map fst choices)
+        >>| Option.map (fun q -> List.assq q choices)]
+
+  val show_error_message :
+       message:string
+    -> ?options:MessageOptions.t
+    -> choices:(string * 'a) list
+    -> 'a or_undefined Promise.t
+    [@@js.custom
+      val show_error_message :
+           message:string
+        -> ?options:MessageOptions.t
+        -> items:(MessageItem.t list[@js.variadic])
+        -> MessageItem.t or_undefined Promise.t
+        [@@js.global]
+
+      let show_error_message ~message ?options ~choices =
+        let choices = get_choices choices in
+        let open Promise.Syntax in
+        show_error_message ~message ?options ~items:(List.map fst choices)
+        >>| Option.map (fun q -> List.assq q choices)]
+
+  val with_progress :
+       options:ProgressOptions.t
+    -> task:(progress:Progress.t -> token:CancellationToken.t -> 'a Promise.t)
+    -> 'a Promise.t
+    [@@js.custom
+      val with_progress :
+           options:ProgressOptions.t
+        -> task:
+             (   progress:Progress.t
+              -> token:CancellationToken.t
+              -> Ojs.t Promise.t)
+        -> Ojs.t Promise.t
+        [@@js.global]
+
+      let with_progress ~options ~task =
+        let task ~progress ~token = Obj.magic (task ~progress ~token) in
+        Obj.magic (with_progress ~options ~task)]
+
+  val create_status_bar_item :
+    ?alignment:StatusBarAlignment.t -> ?priority:int -> unit -> StatusBarItem.t
+    [@@js.global]
+
+  val show_text_document :
+       document:([ `TextDocument of TextDocument.t | `Uri of Uri.t ][@js.union])
+    -> ?column:ViewColumn.t
+    -> ?preserve_focus:bool
+    -> unit
+    -> TextEditor.t Promise.t
+    [@@js.global]
+
+  val create_terminal :
+       ?name:string
+    -> ?shell_path:string
+    -> ?shell_args:([ `String of string | `Strings of string list ][@js.union])
+    -> unit
+    -> Terminal.t
+    [@@js.global]
+
+  val create_terminal_from_options :
+       options:
+         ([ `TerminalOptions of TerminalOptions.t
+          | `ExtensionTerminalOptions of ExtensionTerminalOptions.t
+          ][@js.union])
+    -> Terminal.t
+    [@@js.global "vscode.window.createTerminal"]
+
+  val create_output_channel : name:string -> OutputChannel.t [@@js.global]
+end [@js.scope "vscode.window"]
+
+module Commands : sig
+  val register_command :
+       command:string
+    -> callback:(args:(Ojs.t list[@js.variadic]) -> unit)
+    -> Disposable.t
+    [@@js.global]
+
+  val register_text_editor_command :
+       command:string
+    -> callback:
+         (   text_editor:TextEditor.t
+          -> edit:TextEditorEdit.t
+          -> args:(Ojs.t list[@js.variadic])
+          -> unit)
+    -> Disposable.t
+    [@@js.global]
+
+  val execute_command :
+       command:string
+    -> args:(Ojs.t list[@js.variadic])
+    -> Ojs.t or_undefined Promise.t
+    [@@js.global]
+
+  val get_commands : ?filter_internal:bool -> unit -> string list Promise.t
+    [@@js.global]
+end [@js.scope "vscode.commands"]
+
+module Languages : sig
+  val register_document_formatting_edit_provider :
+       selector:DocumentSelector.t
+    -> provider:DocumentFormattingEditProvider.t
+    -> Disposable.t
+    [@@js.global]
+end [@js.scope "vscode.languages"]
+
+module Tasks : sig
+  val register_task_provider :
+    type_:string -> provider:TaskProvider.t -> Disposable.t
+    [@@js.global]
+end [@js.scope "vscode.tasks"]
+
+module Env : sig
+  val shell : unit -> string [@@js.get]
+end [@js.scope "vscode.env"]
