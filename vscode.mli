@@ -9,15 +9,15 @@ type 'a or_undefined = 'a option
 
 let undefined = Ojs.variable "undefined"
 
-let or_undefined_of_js f x =
-  if x != undefined && x != Ojs.null then
-    Some (f x)
+let or_undefined_of_js ml_of_js js_val =
+  if js_val != undefined && js_val != Ojs.null then
+    Some (ml_of_js js_val)
   else
     None
 
-let or_undefined_to_js f = function
-  | Some x -> f x
-  | None   -> undefined
+let or_undefined_to_js ml_to_js = function
+  | Some ml_val -> ml_to_js ml_val
+  | None        -> undefined
 
 let iter_set obj field f value =
   Option.iter (fun value -> Ojs.set obj field (f value)) value]
@@ -916,28 +916,30 @@ end
 module Event : sig
   [@@@js.stop]
 
-  type 'a t
+  type 'a t = listener:('a -> unit) -> Disposable.t
 
   [@@@js.start]
 
   [@@@js.implem
-  type 'a t =
-    { js : Ojs.t
-    ; a_of_js : Ojs.t -> 'a
-    }
+  type 'a t = listener:('a -> unit) -> Disposable.t
 
-  let t_of_js a_of_js js = { js; a_of_js }
+  let t_of_js ml_of_js js_fun =
+   fun [@js.dummy] ~listener:ml_listener ->
+    let js_listener =
+      Ojs.fun_to_js 1 @@ fun js_arg -> ml_listener (ml_of_js js_arg)
+    in
+    let (disposable : Ojs.t) =
+      Ojs.call js_fun "call" [| Ojs.null; js_listener |]
+    in
+    Disposable.t_of_js disposable
 
-  let t_to_js _ t = t.js]
-
-  val subscribe : 'a t -> listener:('a -> unit) -> unit
-    [@@js.custom
-      let subscribe t ~listener =
-        let js_listener js_arg = listener (t.a_of_js js_arg) in
-        let (_ : Ojs.t) =
-          Ojs.call t.js "call" [| Ojs.null; Ojs.fun_to_js 1 js_listener |]
-        in
-        ()]
+  let t_to_js ml_to_js ml_fun =
+    Ojs.fun_to_js 1 @@ fun js_listener ->
+    let ml_listener ml_arg =
+      ignore @@ Ojs.call js_listener "call" [| Ojs.null; ml_to_js ml_arg |]
+    in
+    let (disposable : Disposable.t) = ml_fun ~listener:ml_listener in
+    Disposable.t_to_js disposable]
 end
 
 module CancellationToken : sig
