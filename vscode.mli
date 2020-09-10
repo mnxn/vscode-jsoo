@@ -721,7 +721,7 @@ module TextEditor : sig
 
   val edit :
        t
-    -> callback:(TextEditorEdit.t -> unit)
+    -> callback:(edit_builder:TextEditorEdit.t -> unit)
     -> ?undo_stop_before:bool
     -> ?undo_stop_after:bool
     -> unit
@@ -729,7 +729,7 @@ module TextEditor : sig
     [@@js.custom
       val edit :
            t
-        -> callback:(TextEditorEdit.t -> unit)
+        -> callback:(edit_builder:TextEditorEdit.t -> unit)
         -> Ojs.t
         -> unit
         -> bool Promise.t
@@ -1025,7 +1025,7 @@ module QuickPickOptions : sig
     -> ?place_holder:string
     -> ?ignore_focus_out:bool
     -> ?can_pick_many:bool
-    -> ?on_did_select_item:(on_did_select_item_args -> unit)
+    -> ?on_did_select_item:(item:on_did_select_item_args -> unit)
     -> unit
     -> t
     [@@js.builder]
@@ -1083,7 +1083,7 @@ module InputBoxOptions : sig
     -> ?place_holder:string
     -> ?password:bool
     -> ?ignore_focus_out:bool
-    -> ?validate_input:(string -> string option Promise.t)
+    -> ?validate_input:(value:string -> string option Promise.t)
     -> unit
     -> t
     [@@js.builder]
@@ -1416,11 +1416,11 @@ module ExtensionContext : sig
 
   val as_absolute_path : t -> relative_path:string -> string [@@js.call]
 
-  val storage_path : t -> string or_undefined [@@js.get]
+  val storage_uri : t -> Uri.t or_undefined [@@js.get]
 
-  val global_storage_path : t -> string [@@js.get]
+  val global_storage_uri : t -> Uri.t [@@js.get]
 
-  val log_path : t -> string [@@js.get]
+  val log_uri : t -> Uri.t [@@js.get]
 
   val extension_mode : t -> ExtensionMode.t [@@js.get]
 
@@ -1572,10 +1572,32 @@ module ProcessExecution : sig
   val options : t -> ProcessExecutionOptions.t or_undefined [@@js.get]
 end
 
+module TaskDefinition : sig
+  type t = private (* interface *) Ojs.t
+
+  val type_ : t -> string [@@js.get]
+
+  val get_attribute : t -> string -> Ojs.t
+    [@@js.custom let get_attribute = Ojs.get]
+
+  val set_attribute : t -> string -> Ojs.t -> unit
+    [@@js.custom let set_attribute = Ojs.set]
+
+  val create : type_:string -> attributes:(string, Ojs.t) Hashtbl.t -> unit -> t
+    [@@js.custom
+      let create ~type_ ~attributes () =
+        let obj = Ojs.obj [| ("type", Ojs.string_to_js type_) |] in
+        Hashtbl.iter (Ojs.set obj) attributes;
+        obj]
+end
+
 module CustomExecution : sig
   type t = private (* class *) Ojs.t
 
-  val make : callback:(unit -> Pseudoterminal.t Promise.t) -> t
+  val make :
+       callback:
+         (resolved_definition:TaskDefinition.t -> Pseudoterminal.t Promise.t)
+    -> t
     [@@js.new "vscode.CustomExecution"]
 end
 
@@ -1701,25 +1723,6 @@ module RunOptions : sig
   val create : ?reevaluate_on_rerun:bool -> unit -> t [@@js.builder]
 end
 
-module TaskDefinition : sig
-  type t = private (* interface *) Ojs.t
-
-  val type_ : t -> string [@@js.get]
-
-  val get_attribute : t -> string -> Ojs.t
-    [@@js.custom let get_attribute = Ojs.get]
-
-  val set_attribute : t -> string -> Ojs.t -> unit
-    [@@js.custom let set_attribute = Ojs.set]
-
-  val create : type_:string -> attributes:(string, Ojs.t) Hashtbl.t -> unit -> t
-    [@@js.custom
-      let create ~type_ ~attributes () =
-        let obj = Ojs.obj [| ("type", Ojs.string_to_js type_) |] in
-        Hashtbl.iter (Ojs.set obj) attributes;
-        obj]
-end
-
 module TaskRevealKind : sig
   type t =
     | Always [@js 1]
@@ -1822,6 +1825,8 @@ module Task : sig
   val scope : t -> scope or_undefined [@@js.get]
 
   val name : t -> string [@@js.get]
+
+  val detail : t -> string or_undefined [@@js.get]
 
   val execution : t -> execution or_undefined [@@js.get]
 
