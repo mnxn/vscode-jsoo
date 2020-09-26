@@ -5,10 +5,32 @@
  (js_of_ocaml
   (javascript_files vscode_require.js))
  (modes byte)
- (libraries promise_jsoo jsonoo gen_js_api js_of_ocaml))
+ (libraries interop promise_jsoo jsonoo gen_js_api js_of_ocaml))
+
+(library
+ (public_name vscode_jsoo.languageclient)
+ (name vscode_languageclient)
+ (modules vscode_languageclient)
+ (js_of_ocaml
+  (javascript_files vscode_languageclient_require.js))
+ (modes byte)
+ (libraries vscode interop promise_jsoo jsonoo gen_js_api js_of_ocaml))
+
+(library
+ (public_name vscode_jsoo.interop)
+ (name interop)
+ (modules interop)
+ (modes byte)
+ (libraries gen_js_api js_of_ocaml))
 
 (rule
  (targets vscode.ml)
  (deps vscode.mli)
+ (action
+  (run %{bin:gen_js_api} %{deps})))
+
+(rule
+ (targets vscode_languageclient.ml)
+ (deps vscode_languageclient.mli)
  (action
   (run %{bin:gen_js_api} %{deps})))

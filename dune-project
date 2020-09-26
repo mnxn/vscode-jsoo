@@ -13,3 +13,8 @@
  (name vscode_jsoo)
  (synopsis "Js_of_ocaml bindings to the VSCode Extension API")
  (depends js_of_ocaml gen_js_api))
+
+; (package
+;  (name vscode_languageclient_jsoo)
+;  (synopsis "Js_of_ocaml bindings to the VSCode Language Client")
+;  (depends vscode_jsoo js_of_ocaml gen_js_api))
