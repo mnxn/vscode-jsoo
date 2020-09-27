@@ -1824,7 +1824,7 @@ module Progress : sig
 end
 
 module Workspace : sig
-  val workspace_folders : unit -> WorkspaceFolder.t [@@js.get]
+  val workspace_folders : unit -> WorkspaceFolder.t list [@@js.get]
 
   val name : unit -> string or_undefined [@@js.get]
 
