@@ -943,7 +943,7 @@ module QuickPickOptions : sig
     [@@js.get]
 
   val create :
-       match_on_description:bool
+       ?match_on_description:bool
     -> ?match_on_detail:bool
     -> ?place_holder:string
     -> ?ignore_focus_out:bool
