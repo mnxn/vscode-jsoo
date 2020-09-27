@@ -1919,57 +1919,67 @@ module Window : sig
        message:string
     -> ?options:MessageOptions.t
     -> choices:(string * 'a) list
+    -> unit
     -> 'a or_undefined Promise.t
     [@@js.custom
       val show_information_message :
            message:string
         -> ?options:MessageOptions.t
         -> items:(MessageItem.t list[@js.variadic])
+        -> unit
         -> MessageItem.t or_undefined Promise.t
         [@@js.global]
 
-      let show_information_message ~message ?options ~choices =
+      let show_information_message ~message ?options ~choices () =
         let choices = get_choices choices in
         let open Promise.Syntax in
-        show_information_message ~message ?options ~items:(List.map fst choices)
+        show_information_message
+          ~message
+          ?options
+          ~items:(List.map fst choices)
+          ()
         >>| Option.map (fun q -> List.assq q choices)]
 
   val show_warning_message :
        message:string
     -> ?options:MessageOptions.t
     -> choices:(string * 'a) list
+    -> unit
     -> 'a or_undefined Promise.t
     [@@js.custom
       val show_warning_message :
            message:string
         -> ?options:MessageOptions.t
         -> items:(MessageItem.t list[@js.variadic])
+        -> unit
         -> MessageItem.t or_undefined Promise.t
         [@@js.global]
 
-      let show_warning_message ~message ?options ~choices =
+      let show_warning_message ~message ?options ~choices () =
         let choices = get_choices choices in
         let open Promise.Syntax in
-        show_warning_message ~message ?options ~items:(List.map fst choices)
+        show_warning_message ~message ?options ~items:(List.map fst choices) ()
         >>| Option.map (fun q -> List.assq q choices)]
 
   val show_error_message :
        message:string
     -> ?options:MessageOptions.t
     -> choices:(string * 'a) list
+    -> unit
     -> 'a or_undefined Promise.t
     [@@js.custom
       val show_error_message :
            message:string
         -> ?options:MessageOptions.t
         -> items:(MessageItem.t list[@js.variadic])
+        -> unit
         -> MessageItem.t or_undefined Promise.t
         [@@js.global]
 
-      let show_error_message ~message ?options ~choices =
+      let show_error_message ~message ?options ~choices () =
         let choices = get_choices choices in
         let open Promise.Syntax in
-        show_error_message ~message ?options ~items:(List.map fst choices)
+        show_error_message ~message ?options ~items:(List.map fst choices) ()
         >>| Option.map (fun q -> List.assq q choices)]
 
   val with_progress :
